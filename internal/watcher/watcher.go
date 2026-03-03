@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jpvargasdev/magos-dominus/internal/config"
 	"github.com/jpvargasdev/magos-dominus/internal/events"
 	"github.com/jpvargasdev/magos-dominus/internal/state"
 )
@@ -52,7 +53,9 @@ func (w *Watcher) Start(ctx context.Context, st *state.File) error {
 		log.Printf("[watcher] no targets configured; idle")
 	}
 
-	ticker := time.NewTicker(1 * time.Minute)
+	pollInterval := config.GetPollInterval()
+	log.Printf("[watcher] poll interval: %s", pollInterval)
+	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
 	w.runOnce(ctx, ghcr, st)

@@ -8,20 +8,26 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	pc "github.com/jpvargasdev/magos-dominus/internal/policy"
+	"golang.org/x/time/rate"
 )
 
 type GHCR struct {
-	client *http.Client
-	mu     sync.Mutex
-	tokens map[string]string
+	client  *http.Client
+	mu      sync.Mutex
+	tokens  map[string]string
+	limiter *rate.Limiter
 }
 
+// NewGHCR creates a new GHCR client with rate limiting.
+// Default: 10 requests per second with burst of 5.
 func NewGHCR() *GHCR {
 	return &GHCR{
-		client: http.DefaultClient,
-		tokens: make(map[string]string),
+		client:  http.DefaultClient,
+		tokens:  make(map[string]string),
+		limiter: rate.NewLimiter(rate.Every(100*time.Millisecond), 5), // 10 req/sec, burst 5
 	}
 }
 
@@ -51,6 +57,11 @@ func (g *GHCR) HeadDigest(ctx context.Context, repo, ref, etag, policy string) (
 }
 
 func (g *GHCR) getManifestDigest(ctx context.Context, repo, ref, etag string) (string, string, bool, error) {
+	// Rate limit to avoid hitting GHCR limits
+	if err := g.limiter.Wait(ctx); err != nil {
+		return "", "", false, fmt.Errorf("rate limiter: %w", err)
+	}
+
 	token, err := g.tokenFor(ctx, repo)
 	if err != nil {
 		return "", "", false, fmt.Errorf("token: %w", err)
@@ -107,6 +118,11 @@ func (g *GHCR) getManifestDigest(ctx context.Context, repo, ref, etag string) (s
 }
 
 func (g *GHCR) ListTags(ctx context.Context, repo string) ([]string, error) {
+	// Rate limit to avoid hitting GHCR limits
+	if err := g.limiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("rate limiter: %w", err)
+	}
+
 	token, err := g.tokenFor(ctx, repo)
 	if err != nil {
 		return nil, fmt.Errorf("token: %w", err)

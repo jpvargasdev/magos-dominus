@@ -33,7 +33,11 @@ func (d *Daemon) consume(ctx context.Context, rm *RepoManager) {
 		case <-ctx.Done():
 			return
 		case ev := <-d.events:
-			cfg := config.GetGitPreferences()
+			cfg, err := config.GetGitPreferences()
+			if err != nil {
+				log.Printf("[error] get git preferences: %v", err)
+				continue
+			}
 
 			log.Printf("[event] repo=%s ref=%s digest=%s", ev.Repo, ev.Ref, ev.Digest)
 
@@ -82,7 +86,10 @@ func (d *Daemon) Start(ctx context.Context) error {
 	}
 
 	//  1. Sync GitOps repo
-	rm := NewRepoManager()
+	rm, err := NewRepoManager()
+	if err != nil {
+		return fmt.Errorf("create repo manager: %w", err)
+	}
 	if err := rm.SyncFresh(); err != nil {
 		return err
 	}

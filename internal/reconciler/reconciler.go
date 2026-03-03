@@ -8,8 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 
+	"github.com/jpvargasdev/magos-dominus/internal/config"
 	"github.com/jpvargasdev/magos-dominus/internal/watcher"
 )
 
@@ -23,8 +23,9 @@ func RunReconcile(ctx context.Context, scriptPath, repoRoot, updatedFile, writeM
 		return fmt.Errorf("reconcile script missing or not executable: %s", scriptPath)
 	}
 
-	// bounded time
-	cctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	// bounded time - configurable via MD_RECONCILE_TIMEOUT
+	timeout := config.GetReconcileTimeout()
+	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(cctx, scriptPath, repoRoot, updatedFile, writeMode)

@@ -28,19 +28,25 @@ type MagosAnnotation struct {
 	Policy string
 }
 
-func NewRepoManager() *RepoManager {
-	gh := config.GetGithubConfig() // MD_REPO is "<owner>/<repo>"
+func NewRepoManager() (*RepoManager, error) {
+	gh, err := config.GetGithubConfig() // MD_REPO is "<owner>/<repo>"
+	if err != nil {
+		return nil, fmt.Errorf("get github config: %w", err)
+	}
 	clean := fmt.Sprintf("https://github.com/%s.git", gh.RepoURL)
 	repoPath := filepath.Join(os.TempDir(), "git")
 
 	return &RepoManager{
 		CleanURL: clean,
 		Path:     repoPath,
-	}
+	}, nil
 }
 
 func (r *RepoManager) Sync() error {
-	ghCfg := config.GetGithubConfig()
+	ghCfg, err := config.GetGithubConfig()
+	if err != nil {
+		return fmt.Errorf("get github config: %w", err)
+	}
 	gh := github.New(ghCfg.AppId, ghCfg.InstallationId, ghCfg.PrivateKeyPath, ghCfg.RepoURL)
 	return gh.CloneOrPull(r.Path)
 }
@@ -198,7 +204,10 @@ func splitImageRef(img string) (string, string, string, string) {
 
 func (r *RepoManager) CommitAndPush(absPath string, preferPR bool) error {
 	ctx := context.Background()
-	ghCfg := config.GetGithubConfig()
+	ghCfg, err := config.GetGithubConfig()
+	if err != nil {
+		return fmt.Errorf("get github config: %w", err)
+	}
 	gh := github.New(ghCfg.AppId, ghCfg.InstallationId, ghCfg.PrivateKeyPath, ghCfg.RepoURL)
 
 	// 1) convertir /tmp/git/... -> stacks/lexcodex/lexcodex-compose.yml

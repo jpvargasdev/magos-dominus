@@ -29,10 +29,8 @@ func RunReconcile(ctx context.Context, scriptPath, repoRoot, updatedFile, writeM
 	defer cancel()
 
 	cmd := exec.CommandContext(cctx, scriptPath, repoRoot, updatedFile, writeMode)
-	cmd.Env = append(os.Environ(),
-		os.Getenv("MD_RUNTIME"),
-		// "MD_DRY_RUN=true",
-	)
+	// Inherit all environment variables from parent process
+	cmd.Env = os.Environ()
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 

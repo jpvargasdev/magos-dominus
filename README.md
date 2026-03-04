@@ -57,6 +57,52 @@ Where drift appears, corruption is purged. Where the manifest and the machine di
 
 ---
 
+## 🚀 Installation
+
+### Quick Install (Linux/macOS)
+
+```bash
+# Download latest release (Linux amd64)
+curl -L -o /usr/local/bin/magos-dominus \
+  https://github.com/jpvargasdev/magos-dominus/releases/latest/download/magos-dominus-linux-amd64
+
+# Make executable
+chmod +x /usr/local/bin/magos-dominus
+
+# Verify installation
+magos-dominus version
+```
+
+### Other platforms
+
+| Platform | Architecture | Binary |
+|----------|--------------|--------|
+| Linux | amd64 | `magos-dominus-linux-amd64` |
+| Linux | arm64 | `magos-dominus-linux-arm64` |
+| macOS | amd64 | `magos-dominus-darwin-amd64` |
+| macOS | arm64 (M1/M2) | `magos-dominus-darwin-arm64` |
+| Windows | amd64 | `magos-dominus-windows-amd64.exe` |
+
+### From source
+
+```bash
+git clone https://github.com/jpvargasdev/magos-dominus.git
+cd magos-dominus
+go build -o magos-dominus ./cmd/server
+```
+
+### Systemd service
+
+Copy the service file and enable:
+
+```bash
+cp scripts/magos-dominus.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now magos-dominus
+```
+
+---
+
 ## 🧩 Repository Layout
 
 * cmd/server/           # Entrypoint and CLI

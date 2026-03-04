@@ -49,14 +49,16 @@ else
 fi
 
 # ---- Logging ----
+# Returns 0 (true) if message at $1 level should be shown given $LOG_LEVEL
 _lvl() {
-  case "$1$LOG_LEVEL" in
-    debugdebug|debuginfo|debugwarn|debugerror) return 0;;
-    infoinfo|infowarn|infoerror) return 0;;
-    warnwarn|warnerror) return 0;;
-    errorerror) return 0;;
-    *) return 1;;
+  local msg_level="$1"
+  case "$LOG_LEVEL" in
+    debug) return 0;;  # show all
+    info)  [[ "$msg_level" != "debug" ]] && return 0;;
+    warn)  [[ "$msg_level" == "warn" || "$msg_level" == "error" ]] && return 0;;
+    error) [[ "$msg_level" == "error" ]] && return 0;;
   esac
+  return 1
 }
 
 log() {

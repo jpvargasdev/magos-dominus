@@ -13,7 +13,10 @@ import (
 	"github.com/jpvargasdev/magos-dominus/internal/watcher"
 )
 
-func RunReconcile(ctx context.Context, scriptPath, repoRoot, updatedFile, writeMode string) error {
+// TokenFunc returns a short-lived GHCR token. Nil means no auth.
+type TokenFunc func(ctx context.Context) (string, error)
+
+func RunReconcile(ctx context.Context, scriptPath, repoRoot, updatedFile, writeMode string, tokenFn TokenFunc) error {
 	if scriptPath == "" {
 		scriptPath = "./reconcile.sh"
 	}
@@ -31,6 +34,17 @@ func RunReconcile(ctx context.Context, scriptPath, repoRoot, updatedFile, writeM
 	cmd := exec.CommandContext(cctx, scriptPath, repoRoot, updatedFile, writeMode)
 	// Inherit all environment variables from parent process
 	cmd.Env = os.Environ()
+
+	// Inject GHCR_TOKEN so reconcile.sh can do podman login
+	if tokenFn != nil {
+		tok, err := tokenFn(cctx)
+		if err != nil {
+			log.Printf("[reconcile] warning: failed to get GHCR token: %v", err)
+		} else {
+			cmd.Env = append(cmd.Env, "GHCR_TOKEN="+tok)
+		}
+	}
+
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 
@@ -42,7 +56,7 @@ func RunReconcile(ctx context.Context, scriptPath, repoRoot, updatedFile, writeM
 	return err
 }
 
-func RunAll(ctx context.Context, scriptPath, repoRoot string, targets []watcher.Target) error {
+func RunAll(ctx context.Context, scriptPath, repoRoot string, targets []watcher.Target, tokenFn TokenFunc) error {
 	seen := map[string]bool{}
 	for _, t := range targets {
 		dir := filepath.Dir(t.Name)
@@ -52,7 +66,7 @@ func RunAll(ctx context.Context, scriptPath, repoRoot string, targets []watcher.
 		seen[dir] = true
 
 		log.Printf("[reconcile] applying folder %s (policy=%s)", dir, t.Policy)
-		if err := RunReconcile(ctx, scriptPath, repoRoot, t.Name, t.Policy); err != nil {
+		if err := RunReconcile(ctx, scriptPath, repoRoot, t.Name, t.Policy, tokenFn); err != nil {
 			log.Printf("[reconcile] %s failed: %v", dir, err)
 		}
 	}

@@ -16,7 +16,8 @@ import (
 )
 
 type Daemon struct {
-	events events.ChanEmitter
+	events  events.ChanEmitter
+	tokenFn reconciler.TokenFunc
 }
 
 func New(buffer int) *Daemon {
@@ -70,7 +71,7 @@ func (d *Daemon) consume(ctx context.Context, rm *RepoManager) {
 
 			// 4) reconcile hook (placeholder)
 			log.Printf("[event] running reconcile.sh")
-			if err := reconciler.RunReconcile(ctx, os.Getenv("MD_RECONCILE_SCRIPT"), rm.Path, ev.File, ev.Policy); err != nil {
+			if err := reconciler.RunReconcile(ctx, os.Getenv("MD_RECONCILE_SCRIPT"), rm.Path, ev.File, ev.Policy, d.tokenFn); err != nil {
 				log.Printf("[error] reconcile: %v", err)
 			}
 		}
@@ -110,11 +111,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 		log.Printf("[warm] failed: %v", err)
 	}
 
-	// 4. Initial run
-	paths := rm.BuildReconcilePaths(annotations)
-	reconciler.RunAll(ctx, os.Getenv("MD_RECONCILE_SCRIPT"), rm.Path, paths)
-
-	// 5. Build GitHub App transport for authenticated GHCR access
+	// 4. Build GitHub App transport for authenticated GHCR access
 	var itr *ghinstallation.Transport
 	ghCfg, err := config.GetGithubConfig()
 	if err != nil {
@@ -124,8 +121,15 @@ func (d *Daemon) Start(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("github app transport: %w", err)
 		}
+		d.tokenFn = func(ctx context.Context) (string, error) {
+			return itr.Token(ctx)
+		}
 		log.Printf("[daemon] GitHub App transport initialized for authenticated GHCR access")
 	}
+
+	// 5. Initial reconcile run
+	paths := rm.BuildReconcilePaths(annotations)
+	reconciler.RunAll(ctx, os.Getenv("MD_RECONCILE_SCRIPT"), rm.Path, paths, d.tokenFn)
 
 	// 6. Create and start watcher with current targets
 	go d.consume(ctx, rm)

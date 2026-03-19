@@ -278,15 +278,22 @@ main() {
   # 4. Backup current state
   backup_state
   
-  # 5. Pull new images
+  # 5. Authenticate with GHCR if token is available
+  if [ -n "${GHCR_TOKEN:-}" ]; then
+    log info "logging in to ghcr.io"
+    echo "$GHCR_TOKEN" | podman login ghcr.io -u x-access-token --password-stdin \
+      || die "ghcr.io login failed"
+  fi
+  
+  # 6. Pull new images
   log info "pulling images"
   run compose pull || die "image pull failed"
   
-  # 6. Deploy
+  # 7. Deploy
   log info "deploying (up -d)"
   run compose up -d --remove-orphans || die "compose up failed"
   
-  # 7. Health check
+  # 8. Health check
   if ! check_health; then
     log error "deployment unhealthy, attempting rollback"
     rollback

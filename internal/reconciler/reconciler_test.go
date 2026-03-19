@@ -11,7 +11,7 @@ import (
 
 func TestRunReconcile_MissingScript(t *testing.T) {
 	ctx := context.Background()
-	err := RunReconcile(ctx, "/nonexistent/script.sh", "/repo", "file.yml", "latest")
+	err := RunReconcile(ctx, "/nonexistent/script.sh", "/repo", "file.yml", "latest", nil)
 
 	if err == nil {
 		t.Fatal("expected error for missing script")
@@ -22,7 +22,7 @@ func TestRunReconcile_DefaultScriptPath(t *testing.T) {
 	ctx := context.Background()
 
 	// This will fail because ./reconcile.sh doesn't exist in test dir
-	err := RunReconcile(ctx, "", "/repo", "file.yml", "latest")
+	err := RunReconcile(ctx, "", "/repo", "file.yml", "latest", nil)
 
 	if err == nil {
 		t.Fatal("expected error for missing default script")
@@ -40,7 +40,7 @@ func TestRunReconcile_ScriptNotExecutable(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err = RunReconcile(ctx, scriptPath, "/repo", "file.yml", "latest")
+	err = RunReconcile(ctx, scriptPath, "/repo", "file.yml", "latest", nil)
 
 	if err == nil {
 		t.Fatal("expected error for non-executable script")
@@ -58,7 +58,7 @@ func TestRunReconcile_ExecutableScript(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err = RunReconcile(ctx, scriptPath, tmpDir, "file.yml", "latest")
+	err = RunReconcile(ctx, scriptPath, tmpDir, "file.yml", "latest", nil)
 
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -78,7 +78,7 @@ func TestRunReconcile_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	err = RunReconcile(ctx, scriptPath, tmpDir, "file.yml", "latest")
+	err = RunReconcile(ctx, scriptPath, tmpDir, "file.yml", "latest", nil)
 
 	// Script should fail due to cancelled context
 	if err == nil {
@@ -101,7 +101,7 @@ echo "$1 $2 $3" > ` + outputFile
 	}
 
 	ctx := context.Background()
-	err = RunReconcile(ctx, scriptPath, "/repo/root", "stacks/app/compose.yml", "semver")
+	err = RunReconcile(ctx, scriptPath, "/repo/root", "stacks/app/compose.yml", "semver", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestRunAll_EmptyTargets(t *testing.T) {
 	ctx := context.Background()
 	targets := []watcher.Target{}
 
-	err := RunAll(ctx, "/nonexistent.sh", "/repo", targets)
+	err := RunAll(ctx, "/nonexistent.sh", "/repo", targets, nil)
 
 	// Should return nil for empty targets (no scripts to run)
 	if err != nil {
@@ -157,7 +157,7 @@ fi`
 	}
 
 	ctx := context.Background()
-	err = RunAll(ctx, scriptPath, tmpDir, targets)
+	err = RunAll(ctx, scriptPath, tmpDir, targets, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -200,7 +200,7 @@ fi`
 	}
 
 	ctx := context.Background()
-	err = RunAll(ctx, scriptPath, tmpDir, targets)
+	err = RunAll(ctx, scriptPath, tmpDir, targets, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

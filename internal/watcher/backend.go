@@ -108,10 +108,10 @@ func (g *GHCR) getManifestDigest(ctx context.Context, repo, ref, etag string) (s
 		}
 		return digest, etagOut, false, nil
 
-	case http.StatusUnauthorized: // 401
-		// Likely expired token; drop cached token so next call refreshes.
+	case http.StatusUnauthorized, http.StatusForbidden: // 401, 403
+		// Expired or insufficient token; drop cached token so next call refreshes.
 		g.dropToken(repo)
-		return "", "", false, fmt.Errorf("unauthorized")
+		return "", "", false, fmt.Errorf("auth failed (status %d)", resp.StatusCode)
 
 	case http.StatusNotFound: // 404
 		return "", "", false, os.ErrNotExist
@@ -146,6 +146,11 @@ func (g *GHCR) ListTags(ctx context.Context, repo string) ([]string, error) {
 		return nil, fmt.Errorf("request: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		g.dropToken(repo)
+		return nil, fmt.Errorf("unexpected status %d from %s", resp.StatusCode, url)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d from %s", resp.StatusCode, url)
@@ -244,10 +249,5 @@ func (g *GHCR) tokenFor(ctx context.Context, repo string) (string, error) {
 func (g *GHCR) dropToken(repo string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	// GitHub App tokens are shared across repos; clear all on expiry.
-	if g.itr != nil {
-		g.tokens = make(map[string]string)
-		return
-	}
 	delete(g.tokens, repo)
 }

@@ -32,6 +32,7 @@ func RunReconcile(ctx context.Context, scriptPath, repoRoot, updatedFile, writeM
 	defer cancel()
 
 	cmd := exec.CommandContext(cctx, scriptPath, repoRoot, updatedFile, writeMode)
+	cmd.Dir = repoRoot
 	// Inherit all environment variables from parent process
 	cmd.Env = os.Environ()
 

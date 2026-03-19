@@ -101,7 +101,7 @@ echo "$1 $2 $3" > ` + outputFile
 	}
 
 	ctx := context.Background()
-	err = RunReconcile(ctx, scriptPath, "/repo/root", "stacks/app/compose.yml", "semver", nil)
+	err = RunReconcile(ctx, scriptPath, tmpDir, "stacks/app/compose.yml", "semver", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -112,7 +112,7 @@ echo "$1 $2 $3" > ` + outputFile
 		t.Fatalf("failed to read output: %v", err)
 	}
 
-	expected := "/repo/root stacks/app/compose.yml semver\n"
+	expected := tmpDir + " stacks/app/compose.yml semver\n"
 	if string(output) != expected {
 		t.Errorf("output = %q, want %q", string(output), expected)
 	}

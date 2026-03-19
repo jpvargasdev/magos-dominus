@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/jpvargasdev/magos-dominus/internal/config"
 	"github.com/jpvargasdev/magos-dominus/internal/events"
 	"github.com/jpvargasdev/magos-dominus/internal/state"
@@ -40,14 +41,15 @@ type Config struct {
 type Watcher struct {
 	targets []Target
 	emitter events.Emitter
+	itr     *ghinstallation.Transport
 }
 
-func New(targets []Target, em events.Emitter) *Watcher {
-	return &Watcher{targets: targets, emitter: em}
+func New(targets []Target, em events.Emitter, itr *ghinstallation.Transport) *Watcher {
+	return &Watcher{targets: targets, emitter: em, itr: itr}
 }
 
 func (w *Watcher) Start(ctx context.Context, st *state.File) error {
-	ghcr := NewGHCR()
+	ghcr := NewGHCR(w.itr)
 
 	if len(w.targets) == 0 {
 		log.Printf("[watcher] no targets configured; idle")

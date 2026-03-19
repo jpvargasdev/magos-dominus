@@ -23,7 +23,7 @@ func TestNew(t *testing.T) {
 	}
 	em := make(events.ChanEmitter, 10)
 
-	w := New(targets, em)
+	w := New(targets, em, nil)
 
 	if w == nil {
 		t.Fatal("New() returned nil")
@@ -39,7 +39,7 @@ func TestNew(t *testing.T) {
 func TestWatcher_StartCancellation(t *testing.T) {
 	targets := []Target{}
 	em := make(events.ChanEmitter, 10)
-	w := New(targets, em)
+	w := New(targets, em, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

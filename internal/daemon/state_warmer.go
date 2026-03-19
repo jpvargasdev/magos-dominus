@@ -10,7 +10,7 @@ import (
 )
 
 var newBackend = func() *watcher.GHCR {
-	return watcher.NewGHCR() // kept around if you still use it elsewhere
+	return watcher.NewGHCR(nil) // anonymous fallback; kept for compatibility
 }
 
 func warmState(st *state.File, targets []watcher.Target) error {

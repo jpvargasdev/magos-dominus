@@ -9,10 +9,10 @@ import (
 )
 
 func TestNewGHCR(t *testing.T) {
-	g := NewGHCR()
+	g := NewGHCR(nil)
 
 	if g == nil {
-		t.Fatal("NewGHCR() returned nil")
+		t.Fatal("NewGHCR(nil) returned nil")
 	}
 	if g.client == nil {
 		t.Error("client is nil")
@@ -26,7 +26,7 @@ func TestNewGHCR(t *testing.T) {
 }
 
 func TestGHCR_RateLimiter(t *testing.T) {
-	g := NewGHCR()
+	g := NewGHCR(nil)
 
 	// The rate limiter allows burst of 5, so first 5 should be instant
 	start := time.Now()
@@ -58,7 +58,7 @@ func TestGHCR_TokenCaching(t *testing.T) {
 	}))
 	defer server.Close()
 
-	g := NewGHCR()
+	g := NewGHCR(nil)
 	// Pre-populate the token cache
 	g.mu.Lock()
 	g.tokens["test/repo"] = "cached-token"
@@ -78,7 +78,7 @@ func TestGHCR_TokenCaching(t *testing.T) {
 }
 
 func TestGHCR_DropToken(t *testing.T) {
-	g := NewGHCR()
+	g := NewGHCR(nil)
 
 	// Add a token
 	g.mu.Lock()
@@ -106,7 +106,7 @@ func TestGHCR_DropToken(t *testing.T) {
 }
 
 func TestGHCR_HeadDigest_ContextCancellation(t *testing.T) {
-	g := NewGHCR()
+	g := NewGHCR(nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
@@ -118,7 +118,7 @@ func TestGHCR_HeadDigest_ContextCancellation(t *testing.T) {
 }
 
 func TestGHCR_ListTags_ContextCancellation(t *testing.T) {
-	g := NewGHCR()
+	g := NewGHCR(nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately

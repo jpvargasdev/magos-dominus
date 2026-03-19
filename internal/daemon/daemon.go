@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/jpvargasdev/magos-dominus/internal/config"
 	"github.com/jpvargasdev/magos-dominus/internal/events"
 	"github.com/jpvargasdev/magos-dominus/internal/reconciler"
@@ -112,8 +114,21 @@ func (d *Daemon) Start(ctx context.Context) error {
 	paths := rm.BuildReconcilePaths(annotations)
 	reconciler.RunAll(ctx, os.Getenv("MD_RECONCILE_SCRIPT"), rm.Path, paths)
 
-	// 5. Create and start watcher with current targets
+	// 5. Build GitHub App transport for authenticated GHCR access
+	var itr *ghinstallation.Transport
+	ghCfg, err := config.GetGithubConfig()
+	if err != nil {
+		log.Printf("[daemon] GitHub App config not available, GHCR will use anonymous tokens: %v", err)
+	} else {
+		itr, err = ghinstallation.NewKeyFromFile(http.DefaultTransport, ghCfg.AppId, ghCfg.InstallationId, ghCfg.PrivateKeyPath)
+		if err != nil {
+			return fmt.Errorf("github app transport: %w", err)
+		}
+		log.Printf("[daemon] GitHub App transport initialized for authenticated GHCR access")
+	}
+
+	// 6. Create and start watcher with current targets
 	go d.consume(ctx, rm)
-	w := watcher.New(targets, d.EventsEmitter())
+	w := watcher.New(targets, d.EventsEmitter(), itr)
 	return w.Start(ctx, st)
 }

@@ -10,22 +10,26 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	pc "github.com/jpvargasdev/magos-dominus/internal/policy"
 	"golang.org/x/time/rate"
 )
 
 type GHCR struct {
 	client  *http.Client
+	itr     *ghinstallation.Transport // nil = anonymous tokens only
 	mu      sync.Mutex
 	tokens  map[string]string
 	limiter *rate.Limiter
 }
 
 // NewGHCR creates a new GHCR client with rate limiting.
+// When itr is non-nil, authenticated tokens are used for private packages.
 // Default: 10 requests per second with burst of 5.
-func NewGHCR() *GHCR {
+func NewGHCR(itr *ghinstallation.Transport) *GHCR {
 	return &GHCR{
 		client:  http.DefaultClient,
+		itr:     itr,
 		tokens:  make(map[string]string),
 		limiter: rate.NewLimiter(rate.Every(100*time.Millisecond), 5), // 10 req/sec, burst 5
 	}
@@ -166,7 +170,20 @@ func (g *GHCR) tokenFor(ctx context.Context, repo string) (string, error) {
 	}
 	g.mu.Unlock()
 
-	// Anonymous pull token
+	// Use GitHub App installation token for authenticated access to private packages.
+	// Falls back to anonymous token for public packages.
+	if g.itr != nil {
+		tok, err := g.itr.Token(ctx)
+		if err != nil {
+			return "", fmt.Errorf("github app token: %w", err)
+		}
+		g.mu.Lock()
+		g.tokens[repo] = tok
+		g.mu.Unlock()
+		return tok, nil
+	}
+
+	// Anonymous pull token (public packages only)
 	url := fmt.Sprintf("https://ghcr.io/token?scope=repository:%s:pull", repo)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -198,6 +215,11 @@ func (g *GHCR) tokenFor(ctx context.Context, repo string) (string, error) {
 
 func (g *GHCR) dropToken(repo string) {
 	g.mu.Lock()
+	defer g.mu.Unlock()
+	// GitHub App tokens are shared across repos; clear all on expiry.
+	if g.itr != nil {
+		g.tokens = make(map[string]string)
+		return
+	}
 	delete(g.tokens, repo)
-	g.mu.Unlock()
 }

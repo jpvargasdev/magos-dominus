@@ -170,17 +170,45 @@ func (g *GHCR) tokenFor(ctx context.Context, repo string) (string, error) {
 	}
 	g.mu.Unlock()
 
-	// Use GitHub App installation token for authenticated access to private packages.
-	// Falls back to anonymous token for public packages.
+	// Use GitHub App installation token to authenticate against GHCR token endpoint.
+	// GHCR v2 API does not accept raw installation tokens directly; they must be
+	// exchanged for a registry token via Basic auth on the token endpoint.
 	if g.itr != nil {
-		tok, err := g.itr.Token(ctx)
+		installTok, err := g.itr.Token(ctx)
 		if err != nil {
 			return "", fmt.Errorf("github app token: %w", err)
 		}
+
+		url := fmt.Sprintf("https://ghcr.io/token?scope=repository:%s:pull", repo)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return "", err
+		}
+		req.SetBasicAuth("x-access-token", installTok)
+
+		resp, err := g.client.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("ghcr token exchange: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("ghcr token exchange status %d", resp.StatusCode)
+		}
+
+		var payload struct {
+			Token string `json:"token"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return "", fmt.Errorf("ghcr token decode: %w", err)
+		}
+		if payload.Token == "" {
+			return "", fmt.Errorf("empty token from GHCR exchange")
+		}
+
 		g.mu.Lock()
-		g.tokens[repo] = tok
+		g.tokens[repo] = payload.Token
 		g.mu.Unlock()
-		return tok, nil
+		return payload.Token, nil
 	}
 
 	// Anonymous pull token (public packages only)

@@ -70,7 +70,7 @@ log() {
     warn)  color="$YELLOW";;
     error) color="$RED";;
   esac
-  _lvl "$level" && printf "${color}[reconcile][%s][%s]${NC} %s\n" "$(date +%H:%M:%S)" "$level" "$*"
+  _lvl "$level" && printf "${color}[reconcile][%s][%s]${NC} %s\n" "$(date +%H:%M:%S)" "$level" "$*" || :
 }
 
 die() { log error "$@"; exit 1; }
@@ -252,7 +252,22 @@ validate_env_files() {
       die "missing env_file: $p"
     fi
     log debug "env_file ok: $p"
-  done < <(awk '$1 ~ /^env_file:/ {f=1;next} f && /^[[:space:]]*-/ {print; next} f && !/^[[:space:]]/ {f=0}' "$COMPOSE_FILE")
+  done < <(awk '
+    /^[[:space:]]*env_file:/ {
+      # record the indent of the env_file key
+      match($0, /^[[:space:]]*/); indent = RLENGTH; f = 1; next
+    }
+    f {
+      # blank lines inside the block are ok
+      if (/^[[:space:]]*$/) next
+      # measure current indent
+      match($0, /^[[:space:]]*/); cur = RLENGTH
+      # stop when indent returns to same or lesser level
+      if (cur <= indent) { f = 0; next }
+      # only emit lines that are list items
+      if (/^[[:space:]]*-/) print
+    }
+  ' "$COMPOSE_FILE")
 }
 
 # ---- Main ----
